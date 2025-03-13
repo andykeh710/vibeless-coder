@@ -1,0 +1,139 @@
+{
+  "name": "cursor-automation",
+  "displayName": "Cursor Automation",
+  "description": "Automatically sends messages to Cursor AI agent at configurable intervals",
+  "version": "0.1.0",
+  "publisher": "cursor-automation",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cursor-automation.enable",
+        "title": "Enable Cursor Automation"
+      },
+      {
+        "command": "cursor-automation.disable",
+        "title": "Disable Cursor Automation"
+      },
+      {
+        "command": "cursor-automation.sendNow",
+        "title": "Send Message Now"
+      },
+      {
+        "command": "cursor-automation.openSettings",
+        "title": "Open Automation Settings"
+      }
+    ],
+    "configuration": {
+      "title": "Cursor Automation",
+      "properties": {
+        "cursorAutomation.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable or disable automatic message sending"
+        },
+        "cursorAutomation.interval": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 1000,
+          "description": "Interval in milliseconds between automated messages"
+        },
+        "cursorAutomation.message": {
+          "type": "string",
+          "default": "Help me optimize this function for better performance.",
+          "description": "Message to send to Cursor AI agent"
+        },
+        "cursorAutomation.autoSend": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically trigger Cursor's send command after inserting message"
+        },
+        "cursorAutomation.handleMultiCursor": {
+          "type": "boolean",
+          "default": true,
+          "description": "Insert message at all cursor positions when multiple cursors are active"
+        },
+        "cursorAutomation.cursorBehavior": {
+          "type": "string",
+          "enum": ["stay", "end", "start"],
+          "default": "stay",
+          "description": "Where to place the cursor after inserting the message"
+        },
+        "cursorAutomation.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show notifications when messages are sent"
+        },
+        "cursorAutomation.playSound": {
+          "type": "boolean",
+          "default": false,
+          "description": "Play a sound when messages are sent"
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "cursor-automation.sendNow",
+          "group": "cursorAutomation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "cursor-automation.openSettings",
+          "when": "view == cursorAutomationView"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "cursor-automation.enable",
+          "when": "!config.cursorAutomation.enabled"
+        },
+        {
+          "command": "cursor-automation.disable",
+          "when": "config.cursorAutomation.enabled"
+        },
+        {
+          "command": "cursor-automation.sendNow"
+        },
+        {
+          "command": "cursor-automation.openSettings"
+        }
+      ]
+    },
+    "statusBar": {
+      "text": "Cursor Automation",
+      "command": "cursor-automation.toggle",
+      "tooltip": "Toggle Cursor Automation"
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "@types/glob": "^7.2.0",
+    "@types/mocha": "^9.1.1",
+    "@types/node": "16.x",
+    "glob": "^8.0.3",
+    "mocha": "^10.0.0",
+    "typescript": "^4.7.4",
+    "ts-loader": "^9.3.1",
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0",
+    "@vscode/test-electron": "^2.1.5"
+  }
+}
