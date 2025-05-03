@@ -30,18 +30,33 @@ A simplified, reliable VS Code extension for Cursor IDE that sends timed message
 
 4. **Restart Cursor** to load the extension
 
-### Manual Compilation (For Developers)
+## First-Time Setup
 
-If you prefer to compile the extension yourself:
+After installation, you should run through these setup steps:
 
-1. Install Node.js if you don't have it already
-2. Clone this repository
-3. Run:
-   ```
-   npm install
-   npm run compile
-   ```
-4. Follow the Direct Installation steps using your compiled files
+1. **Verify installation**
+   - After restarting Cursor, open the Command Palette (Ctrl+Shift+P or Cmd+Shift+P)
+   - Type "Cursor Prompter" and verify you see the extension commands
+
+2. **Test focus commands compatibility**
+   - Run the command "Cursor Prompter: Test Focus Commands"
+   - This will test which commands work with your version of Cursor
+   - If prompted to update your focus command setting, select "Yes"
+
+3. **Configure settings**
+   - Run "Cursor Prompter: Open Settings"
+   - Adjust the interval (recommended: 30000 ms or higher)
+   - Review the message sequence settings
+   - Leave other settings at their defaults initially
+
+4. **Test manually**
+   - Make sure Cursor's chat panel is open
+   - Run "Cursor Prompter: Send Message Now" to test
+   - Verify the message appears in the chat panel and is sent
+
+5. **Enable the prompter**
+   - Run "Cursor Prompter: Enable" to start automated prompting
+   - Check the status bar for the "Cursor Prompter: ON" indicator
 
 ## Using Cursor Prompter
 
@@ -67,13 +82,22 @@ Configure these settings in the VS Code settings interface (File > Preferences >
 - `cursorPrompter.autoSend`: Automatically press Enter after inserting text
 - `cursorPrompter.showNotifications`: Show notifications when messages are sent
 
-## Getting Started
+## Workflow Best Practices
 
-1. Open Cursor
-2. Run "Cursor Prompter: Test Focus Commands" to find which focus commands work with your Cursor version
-3. Run "Cursor Prompter: Open Settings" to configure your preferences
-4. Make sure Cursor's chat panel is open and visible
-5. Run "Cursor Prompter: Enable" to start the automated messaging
+1. **Start with context**
+   - Begin with a manual, detailed prompt that sets the context before enabling the prompter
+   - Only enable the prompter after the initial context is established
+
+2. **Use longer intervals**
+   - Start with 30+ second intervals
+   - Adjust based on Cursor AI's response time and complexity
+
+3. **Combine with manual interaction**
+   - The prompter works best as a supplement to manual interaction
+   - When AI gives a valuable insight, follow up manually with specific questions
+
+4. **Disable when not needed**
+   - Toggle the prompter off when you're not actively using the AI
 
 ## Troubleshooting
 
@@ -92,28 +116,4 @@ If the extension doesn't work properly:
    - Try using the "Send Message Now" command to test functionality
    - If focus doesn't work, use the "Test Focus Commands" feature to find a compatible command
    - Check Cursor's Developer Tools console for extension logs (Help > Toggle Developer Tools)
-   - Increase the interval time if messages are being rate-limited
-
-## Status Bar Indicator
-
-Look for the "Cursor Prompter: ON/OFF" indicator in the status bar:
-- 💬 Normal operation - everything is working
-- ⚠️ Warning - the last message attempt failed
-- Hover to see countdown to next message and any issues
-- Click to toggle the extension on/off
-
-## Notes for Cursor Users
-
-- Always ensure the chat panel is focused before enabling automation
-- Start with longer intervals (30+ seconds) to avoid rate limits
-- Use the "Test Focus Commands" feature when upgrading Cursor
-- The extension will try multiple focus methods if the configured one fails
-- Check clipboard access permissions if message insertion fails
-
-## Support and Feedback
-
-If you encounter issues or have suggestions:
-1. Open an issue on the GitHub repository
-2. Run "Cursor Prompter: Test Focus Commands" to diagnose chat panel focus issues
-3. Check the Developer Tools console for logs (Help > Toggle Developer Tools)
-4. Include your Cursor version and OS information in bug reports
+   - Increase the interval time if messages are being rate-limited 

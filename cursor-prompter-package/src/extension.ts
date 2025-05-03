@@ -180,7 +180,9 @@ class CursorPrompter {
           'Continue with your previous thoughts.',
           'What else would you suggest?',
           'Please elaborate more on this topic.',
-          'Can you provide more specific details?'
+          'Can you provide more specific details?',
+          'Are there any potential issues with this approach?',
+          'Could you expand on the advantages of this solution?'
         ]);
         
         // Protection against empty message array
@@ -458,4 +460,4 @@ export function activate(context: vscode.ExtensionContext) {
 // This method is called when the extension is deactivated
 export function deactivate() {
   console.log('Cursor Prompter extension is now deactivated');
-}
+} 
