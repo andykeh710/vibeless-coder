@@ -25,7 +25,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deactivate = exports.activate = void 0;
 const vscode = __importStar(require("vscode"));
-// Define class for automation management with simplified approach
+// Define class for automation management with enhanced reliability and features
 class CursorPrompter {
     constructor(context) {
         this.nextTriggerTime = null;
@@ -33,16 +33,42 @@ class CursorPrompter {
         this.lastAttemptFailed = false;
         this.retryCount = 0;
         this.MAX_RETRIES = 3;
+        this.lastError = null;
+        this.compatibleFocusCommands = [];
+        this.lastCheckedVersion = null;
         this.context = context;
-        // Create status bar item with clear visual indication
+        // Create status bar item with enhanced visual feedback
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
         this.statusBarItem.command = 'cursor-prompter.toggle';
         this.updateStatusBar();
         this.statusBarItem.show();
         // Register configuration change listener
         context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(this.handleConfigChange, this));
+        // Load cached compatible commands if available
+        this.loadCompatibleCommands();
         // Start timer if enabled by default
         this.handleConfigChange();
+    }
+    loadCompatibleCommands() {
+        try {
+            this.compatibleFocusCommands = this.context.globalState.get('compatibleFocusCommands') || [];
+            this.lastCheckedVersion = this.context.globalState.get('lastCheckedVersion') || null;
+            console.log('Loaded compatible focus commands:', this.compatibleFocusCommands);
+        }
+        catch (error) {
+            console.error('Failed to load compatible commands from storage:', error);
+            this.compatibleFocusCommands = [];
+        }
+    }
+    saveCompatibleCommands() {
+        try {
+            this.context.globalState.update('compatibleFocusCommands', this.compatibleFocusCommands);
+            this.context.globalState.update('lastCheckedVersion', this.lastCheckedVersion);
+            console.log('Saved compatible focus commands:', this.compatibleFocusCommands);
+        }
+        catch (error) {
+            console.error('Failed to save compatible commands to storage:', error);
+        }
     }
     handleConfigChange(e) {
         if (!e || e.affectsConfiguration('cursorPrompter')) {
@@ -70,10 +96,18 @@ class CursorPrompter {
             if (this.nextTriggerTime) {
                 const remainingMs = this.nextTriggerTime.getTime() - Date.now();
                 const remainingSec = Math.max(0, Math.floor(remainingMs / 1000));
-                this.statusBarItem.tooltip = `Next prompt in ${remainingSec}s${this.lastAttemptFailed ? ' (Last message failed)' : ''}`;
+                let tooltipText = `Next prompt in ${remainingSec}s`;
+                if (this.lastAttemptFailed && this.lastError) {
+                    tooltipText += ` (Error: ${this.lastError})`;
+                }
+                this.statusBarItem.tooltip = tooltipText;
             }
             else {
-                this.statusBarItem.tooltip = `Cursor Prompter is running${this.lastAttemptFailed ? ' (Last message failed)' : ''}`;
+                let tooltipText = 'Cursor Prompter is running';
+                if (this.lastAttemptFailed && this.lastError) {
+                    tooltipText += ` (Error: ${this.lastError})`;
+                }
+                this.statusBarItem.tooltip = tooltipText;
             }
         }
         else {
@@ -82,9 +116,10 @@ class CursorPrompter {
             this.statusBarItem.tooltip = 'Cursor Prompter is inactive';
             // Reset failure flag when disabled
             this.lastAttemptFailed = false;
+            this.lastError = null;
         }
     }
-    // Start the automation timer with improved reliability
+    // Start the automation timer with enhanced reliability
     startTimer() {
         // Clear any existing timer
         this.stopTimer();
@@ -98,7 +133,8 @@ class CursorPrompter {
             catch (error) {
                 console.error('Error in timer callback:', error);
                 this.lastAttemptFailed = true;
-                this.showNotification(`Error: ${error instanceof Error ? error.message : String(error)}`);
+                this.lastError = error instanceof Error ? error.message : String(error);
+                this.showNotification(`Error: ${this.lastError}`);
                 this.updateStatusBar();
             }
         }, interval);
@@ -114,20 +150,22 @@ class CursorPrompter {
             }
             this.updateStatusBar();
         }, 1000);
+        // Register for automatic cleanup
         this.context.subscriptions.push({ dispose: () => {
                 if (this.statusUpdateTimer) {
                     clearInterval(this.statusUpdateTimer);
                     this.statusUpdateTimer = undefined;
                 }
             } });
-        // Reset failure state when starting timer
+        // Reset error state when starting timer
         this.lastAttemptFailed = false;
+        this.lastError = null;
         this.retryCount = 0;
         // Log and notify
         console.log('Cursor Prompter timer started with interval:', interval);
         this.showNotification('Prompter activated');
     }
-    // Stop the automation timer
+    // Stop the automation timer and clean up
     stopTimer() {
         if (this.timer) {
             clearInterval(this.timer);
@@ -141,21 +179,60 @@ class CursorPrompter {
         console.log('Cursor Prompter timer stopped');
         this.showNotification('Prompter deactivated');
     }
-    // Try alternate focus methods
+    // Try to focus Cursor chat using any available method
+    async focusCursorChat() {
+        const config = vscode.workspace.getConfiguration('cursorPrompter');
+        const configuredCommand = config.get('focusCommand', 'cursor.chatPanel.focus');
+        // First, try the configured command
+        try {
+            await vscode.commands.executeCommand(configuredCommand);
+            console.log(`Successfully focused chat using configured command: ${configuredCommand}`);
+            await new Promise(resolve => setTimeout(resolve, 300)); // Wait for UI update
+            return true;
+        }
+        catch (error) {
+            console.log(`Configured focus command failed: ${error}`);
+            // If we have cached compatible commands, try those first
+            if (this.compatibleFocusCommands.length > 0) {
+                console.log('Trying cached compatible commands:', this.compatibleFocusCommands);
+                for (const cmd of this.compatibleFocusCommands) {
+                    try {
+                        await vscode.commands.executeCommand(cmd);
+                        console.log(`Successfully focused chat using cached command: ${cmd}`);
+                        await new Promise(resolve => setTimeout(resolve, 300)); // Wait for UI update
+                        return true;
+                    }
+                    catch (cmdError) {
+                        console.log(`Cached focus command failed: ${cmd}, error: ${cmdError}`);
+                    }
+                }
+            }
+            // Fall back to trying all potential commands
+            return this.tryFocusMethods();
+        }
+    }
+    // Try all potential focus methods in sequence
     async tryFocusMethods() {
         const focusCommands = [
             'cursor.chatPanel.focus',
             'cursor.toggleChatPanel',
             'cursor.chat',
             'cursor.newChat',
-            'cursor.expandChatPanel'
+            'cursor.expandChatPanel',
+            'cursor.copilot.focus',
+            'cursor.focusChat'
         ];
         for (const cmd of focusCommands) {
             try {
                 console.log(`Trying focus command: ${cmd}`);
                 await vscode.commands.executeCommand(cmd);
                 // Small delay to allow UI to update
-                await new Promise(resolve => setTimeout(resolve, 200));
+                await new Promise(resolve => setTimeout(resolve, 300));
+                // If successful, add to compatible commands cache
+                if (!this.compatibleFocusCommands.includes(cmd)) {
+                    this.compatibleFocusCommands.push(cmd);
+                    this.saveCompatibleCommands();
+                }
                 return true;
             }
             catch (error) {
@@ -164,7 +241,7 @@ class CursorPrompter {
         }
         return false;
     }
-    // Simplified message sending that focuses on the most reliable method
+    // Enhanced message sending with improved clipboard handling
     async sendMessage() {
         let originalClipboard = '';
         try {
@@ -192,77 +269,86 @@ class CursorPrompter {
             else {
                 message = config.get('message', 'Continue with your previous thoughts.');
             }
-            // Step 1: Focus Cursor's chat interface using configured or fallback methods
-            const focusCommand = config.get('focusCommand', 'cursor.chatPanel.focus');
-            let focusSucceeded = false;
-            try {
-                await vscode.commands.executeCommand(focusCommand);
-                console.log('Successfully focused chat using command:', focusCommand);
-                focusSucceeded = true;
-            }
-            catch (error) {
-                console.log(`Configured focus command failed: ${error}`);
-                // Try alternative focus methods if configured one fails
-                console.log('Trying alternative focus methods...');
-                focusSucceeded = await this.tryFocusMethods();
-            }
+            // Step 1: Focus Cursor's chat interface using enhanced method
+            const focusSucceeded = await this.focusCursorChat();
             if (!focusSucceeded) {
                 this.lastAttemptFailed = true;
+                this.lastError = 'Failed to focus chat panel';
                 this.updateStatusBar();
                 this.showNotification('Failed to focus chat panel. Please open Cursor chat panel first.');
                 return;
             }
-            // Step 2: Brief pause to allow UI to update
-            await new Promise(resolve => setTimeout(resolve, 300)); // Increased delay for UI update
-            // Step 3: Save original clipboard content before we modify it
+            // Step 2: Preserve original clipboard content with enhanced error handling
             try {
                 originalClipboard = await vscode.env.clipboard.readText();
                 console.log('Original clipboard content saved');
             }
             catch (error) {
                 console.log('Failed to read clipboard:', error);
+                originalClipboard = '';
                 // Continue anyway, we'll just not be able to restore the clipboard
             }
-            // Step 4: Insert message using clipboard (most reliable method)
-            try {
-                await vscode.env.clipboard.writeText(message);
-                console.log('Message copied to clipboard');
+            // Step 3: Insert message using clipboard with retry mechanism
+            let clipboardWriteSuccess = false;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    await vscode.env.clipboard.writeText(message);
+                    console.log(`Message copied to clipboard (attempt ${attempt + 1})`);
+                    clipboardWriteSuccess = true;
+                    break;
+                }
+                catch (error) {
+                    console.log(`Failed to write to clipboard (attempt ${attempt + 1}):`, error);
+                    await new Promise(resolve => setTimeout(resolve, 300)); // Brief pause before retry
+                }
             }
-            catch (error) {
-                console.log('Failed to write to clipboard:', error);
+            if (!clipboardWriteSuccess) {
                 this.lastAttemptFailed = true;
+                this.lastError = 'Failed to access clipboard';
                 this.updateStatusBar();
                 this.showNotification('Failed to access clipboard. Check clipboard permissions.');
                 return;
             }
-            // Step 5: Paste the message into the chat
-            try {
-                await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
-                console.log('Message pasted successfully');
-                // Reset failure flag and retry count on success
-                this.lastAttemptFailed = false;
-                this.retryCount = 0;
+            // Step 4: Paste the message into the chat with retry mechanism
+            let pasteSuccess = false;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
+                    console.log(`Message pasted successfully (attempt ${attempt + 1})`);
+                    pasteSuccess = true;
+                    // Reset failure flags on success
+                    this.lastAttemptFailed = false;
+                    this.lastError = null;
+                    this.retryCount = 0;
+                    break;
+                }
+                catch (error) {
+                    console.log(`Paste failed (attempt ${attempt + 1}):`, error);
+                    await new Promise(resolve => setTimeout(resolve, 300)); // Brief pause before retry
+                    // Try to refocus before retry
+                    await this.focusCursorChat();
+                }
             }
-            catch (error) {
-                console.log(`Paste failed: ${error}`);
+            if (!pasteSuccess) {
                 this.lastAttemptFailed = true;
+                this.lastError = 'Failed to paste message';
                 this.retryCount++;
                 // Only show notification if we haven't already tried too many times
                 if (this.retryCount <= this.MAX_RETRIES) {
                     this.showNotification('Paste failed. Please check Cursor chat is focused.');
                 }
                 // Restore original clipboard and exit
-                this.tryRestoreClipboard(originalClipboard);
+                await this.tryRestoreClipboard(originalClipboard);
                 this.updateStatusBar();
                 return;
             }
-            // Step 6: Restore original clipboard after a short delay
-            this.tryRestoreClipboard(originalClipboard);
-            // Step 7: Send the message if auto-send is enabled
+            // Step 5: Restore original clipboard after a short delay
+            await this.tryRestoreClipboard(originalClipboard);
+            // Step 6: Send the message if auto-send is enabled
             const autoSend = config.get('autoSend', true);
             if (autoSend) {
                 // Wait for text insertion to complete
-                await new Promise(resolve => setTimeout(resolve, 300)); // Increased delay for stability
+                await new Promise(resolve => setTimeout(resolve, 300));
                 try {
                     // Try Enter key simulation (most universal method)
                     await vscode.commands.executeCommand('type', { text: '\n' });
@@ -271,6 +357,7 @@ class CursorPrompter {
                 catch (error) {
                     console.log(`Failed to send message: ${error}`);
                     this.lastAttemptFailed = true;
+                    this.lastError = 'Failed to send message (Enter key)';
                     this.updateStatusBar();
                     this.showNotification('Message inserted but not sent. Press Enter manually.');
                     return;
@@ -287,23 +374,31 @@ class CursorPrompter {
             this.tryRestoreClipboard(originalClipboard);
             console.error('Error in sendMessage:', error);
             this.lastAttemptFailed = true;
+            this.lastError = error instanceof Error ? error.message : String(error);
             this.updateStatusBar();
-            vscode.window.showErrorMessage(`Cursor Prompter Error: ${error instanceof Error ? error.message : String(error)}`);
+            vscode.window.showErrorMessage(`Cursor Prompter Error: ${this.lastError}`);
         }
     }
-    // Helper to safely restore clipboard
+    // Improved clipboard restoration with retry mechanism
     async tryRestoreClipboard(content) {
-        if (content) {
+        if (!content) {
+            return; // Nothing to restore
+        }
+        // Try to restore clipboard content with retries
+        for (let attempt = 0; attempt < 3; attempt++) {
             try {
                 // Small delay before restoring clipboard
                 await new Promise(resolve => setTimeout(resolve, 300));
                 await vscode.env.clipboard.writeText(content);
-                console.log('Original clipboard content restored');
+                console.log(`Original clipboard content restored (attempt ${attempt + 1})`);
+                return; // Success
             }
             catch (error) {
-                console.log('Failed to restore clipboard:', error);
+                console.log(`Failed to restore clipboard (attempt ${attempt + 1}):`, error);
+                await new Promise(resolve => setTimeout(resolve, 300)); // Brief pause before retry
             }
         }
+        console.log('All clipboard restore attempts failed');
     }
     showNotification(message) {
         const config = vscode.workspace.getConfiguration('cursorPrompter');
@@ -333,15 +428,47 @@ class CursorPrompter {
     openSettings() {
         vscode.commands.executeCommand('workbench.action.openSettings', 'cursorPrompter');
     }
-    // Test all focus commands and report which ones work
+    // Enhanced test for focus commands with caching
     async testFocusCommands() {
         const focusCommands = [
             'cursor.chatPanel.focus',
             'cursor.toggleChatPanel',
             'cursor.chat',
             'cursor.newChat',
-            'cursor.expandChatPanel'
+            'cursor.expandChatPanel',
+            'cursor.copilot.focus',
+            'cursor.focusChat'
         ];
+        // Get current Cursor version if available
+        let cursorVersion = 'unknown';
+        try {
+            const extensions = vscode.extensions.all;
+            const cursorExt = extensions.find(ext => ext.id === 'cursor.cursor' || ext.id.includes('cursor'));
+            if (cursorExt) {
+                cursorVersion = cursorExt.packageJSON.version || 'unknown';
+            }
+        }
+        catch (error) {
+            console.log('Failed to get Cursor version:', error);
+        }
+        // If version is same as last checked and we have compatible commands, skip test
+        if (this.lastCheckedVersion === cursorVersion && this.compatibleFocusCommands.length > 0) {
+            this.showNotification(`Using cached focus commands: ${this.compatibleFocusCommands.join(', ')}`);
+            // Still check if configured command is in the compatible list
+            const config = vscode.workspace.getConfiguration('cursorPrompter');
+            const currentFocusCmd = config.get('focusCommand', 'cursor.chatPanel.focus');
+            if (!this.compatibleFocusCommands.includes(currentFocusCmd) && this.compatibleFocusCommands.length > 0) {
+                const recommended = this.compatibleFocusCommands[0];
+                const changeCmd = await vscode.window.showInformationMessage(`Your current focus command "${currentFocusCmd}" isn't in the compatible list, but "${recommended}" works. Change to that?`, 'Yes', 'No');
+                if (changeCmd === 'Yes') {
+                    config.update('focusCommand', recommended, vscode.ConfigurationTarget.Global);
+                    this.showNotification(`Focus command changed to: ${recommended}`);
+                }
+            }
+            return;
+        }
+        // Start fresh test
+        this.showNotification('Testing focus commands for compatibility...');
         let workingCommands = [];
         for (const cmd of focusCommands) {
             try {
@@ -351,7 +478,12 @@ class CursorPrompter {
                 console.log(`Command succeeded: ${cmd}`);
                 // Undo the effect (close panel if it was opened)
                 if (cmd !== 'cursor.chatPanel.focus') {
-                    await vscode.commands.executeCommand('cursor.toggleChatPanel');
+                    try {
+                        await vscode.commands.executeCommand('cursor.toggleChatPanel');
+                    }
+                    catch (error) {
+                        // Ignore errors when trying to close
+                    }
                 }
             }
             catch (error) {
@@ -359,6 +491,10 @@ class CursorPrompter {
             }
         }
         if (workingCommands.length > 0) {
+            // Update cache
+            this.compatibleFocusCommands = workingCommands;
+            this.lastCheckedVersion = cursorVersion;
+            this.saveCompatibleCommands();
             this.showNotification(`Working focus commands: ${workingCommands.join(', ')}`);
             // If current focus command isn't working but we found alternatives, suggest changing
             const config = vscode.workspace.getConfiguration('cursorPrompter');

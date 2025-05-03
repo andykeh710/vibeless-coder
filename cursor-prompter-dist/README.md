@@ -15,12 +15,11 @@ Cursor Prompter keeps your AI conversations flowing by automatically sending fol
 
 ## Key Features
 
-- **Enhanced Command Compatibility**: Automatically detects and remembers which commands work with your Cursor version
-- **Intelligent Error Recovery**: Advanced retry mechanisms with detailed error reporting
 - **Message Sequencing**: Cycles through customizable prompts for natural conversations
-- **Clipboard Preservation**: Safely and reliably restores your clipboard content after each operation
-- **Visual Status Indicator**: Clear status bar with countdown timer and detailed error state
-- **Version-Aware Testing**: Skips compatibility tests when your Cursor version hasn't changed
+- **Intelligent Error Recovery**: Adapts to focus issues and provides visual feedback
+- **Clipboard Preservation**: Safely restores your clipboard content after each operation
+- **Compatibility Testing**: Automatically detects which commands work with your Cursor version
+- **Visual Status Indicator**: Clear status bar with countdown timer and error state
 
 ## Installation
 
@@ -60,7 +59,7 @@ You can also install Cursor Prompter manually:
 3. **Restart Cursor**
    - Close and reopen Cursor to load the extension
 
-For detailed installation instructions, refer to the [INSTALLATION.md](INSTALLATION.md) file.
+For detailed installation instructions, refer to the [INSTALLATION.md](cursor-prompter-package/INSTALLATION.md) file.
 
 ## Getting Started
 
@@ -123,7 +122,7 @@ If you encounter issues:
 
 1. **Check status indicator**
    - Red alert icon means the last message failed
-   - Hover to see detailed error message and suggestions
+   - Hover to see more details
 
 2. **Run compatibility test**
    - Use "Test Focus Commands" to find working commands
@@ -139,26 +138,36 @@ For more troubleshooting steps, refer to the extension's in-package documentatio
 
 The extension uses a systematic approach to interact with Cursor's chat interface:
 
-1. **Focus Phase**: Uses compatible commands to focus the chat panel, with smart caching of working commands
-2. **Clipboard Phase**: Temporarily uses clipboard to insert messages reliably, with auto-retry for failures
+1. **Focus Phase**: Uses compatible commands to focus the chat panel
+2. **Clipboard Phase**: Temporarily uses clipboard to insert messages reliably
 3. **Send Phase**: Simulates Enter key press to send messages
-4. **Recovery Phase**: Restores original clipboard content with retry logic for reliability
+4. **Recovery Phase**: Restores original clipboard content
 
-This approach provides maximum compatibility across different Cursor versions.
+This method provides maximum compatibility across different Cursor versions.
 
-## Version History
+## Project Structure
 
-### v0.2.0 - Current Release
-- Enhanced focus command compatibility detection with version caching
-- Improved error handling and recovery with detailed status messages
-- Added automatic retry mechanisms for clipboard operations
-- Expanded set of potential focus commands for better compatibility
-- Added detailed error reporting in status bar hover
+```
+cursor-prompter/
+├── src/                    # TypeScript source code
+│   └── extension.ts        # Main extension code
+├── out/                    # Compiled JavaScript output
+├── package.json            # Extension manifest
+├── README.md               # This file
+├── INSTALLATION.md         # Detailed installation guide
+├── install.js              # Automatic installation script 
+└── tsconfig.json           # TypeScript configuration
+```
 
-### v0.1.0 - Initial Release 
-- Basic functionality for automating messages
-- Simple focus command testing
-- Clipboard-based message insertion
+## Development
+
+To build from source:
+
+1. Clone this repository
+2. Run `npm install` to install dependencies
+3. Make changes to `src/extension.ts`
+4. Run `npm run compile` to compile TypeScript to JavaScript
+5. Follow installation steps using your compiled files
 
 ## License
 
